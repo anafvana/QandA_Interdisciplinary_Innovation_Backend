@@ -131,8 +131,8 @@ func (s *server) createTables() error {
 		entryID INT NOT NULL AUTO_INCREMENT, 
 		question VARCHAR(600), 
 		answer VARCHAR(4000),
-		submission_date DATE,
-		last_update DATE,
+		submission_date DATETIME,
+		last_update DATETIME,
 		PRIMARY KEY ( entryID )
 	);`
 
@@ -359,6 +359,86 @@ func (s *server) checkKeyword(kw keyword) (bool, error) {
 	return b, err
 }
 
+func (s *server) fetchEntry(id string) entry {
+	var e entry
+
+	//Fetches data from entries
+	var sdSTR string
+	var luSTR string
+	err := s.db.QueryRow(`
+		SELECT * FROM entries WHERE entryID=? ;
+	`, id).Scan(&e.ID, &e.Question, &e.Answer, &sdSTR, &luSTR)
+	if err != nil {
+		log.Println(err)
+	}
+	layout := "2006-01-02 15:04:05"
+	e.SubmissionDate, err = time.Parse(layout, sdSTR)
+	if err != nil {
+		log.Println(err)
+	}
+
+	e.LastUpdate, err = time.Parse(layout, luSTR)
+	if err != nil {
+		log.Println(err)
+	}
+
+	//Fetches categories
+	e.Categories = s.fetchEntryCategory(e.ID)
+
+	//Fetches keywords
+	e.KeyWords = s.fetchEntryKeywords(e.ID)
+
+	fmt.Println(e)
+	return e
+}
+
+func (s *server) fetchEntryCategory(id string) []category {
+	var cats []category
+	
+	//Fetches categories
+	rows, err := s.db.Query(`
+		SELECT category FROM entriesCategories WHERE entryID=? ;
+	`, id)
+	if err != nil {
+		log.Println(err)
+	}
+
+	for rows.Next() {
+		var cat string
+		err := rows.Scan(&cat)
+		if err != nil {
+			log.Println(err)
+		}
+		cats = append(cats, category{Name: cat})
+	}
+
+	return cats
+}
+
+func (s *server) fetchEntryKeywords(id string) []keyword {
+	var kws []keyword
+	
+	//Fetches categories
+	rows, err := s.db.Query(`
+		SELECT keyword FROM entriesKeywords WHERE entryID=? ;
+	`, id)
+	if err != nil {
+		log.Println(err)
+	}
+
+	for rows.Next() {
+		var kw string
+		err := rows.Scan(&kw)
+		if err != nil {
+			log.Println(err)
+		}
+		kws = append(kws, keyword{Name: kw})
+	}
+
+	return kws
+}
+
+
 /* func createEntryJSON() {
 	var cc []category
 	var kkww []keyword
@@ -399,7 +479,7 @@ func main() {
 	for i := range entries {
 		s.newEntryDB(entries[i])
 	}
-
+	s.fetchEntry("1")
 	//s.e.POST("/tables", s.createTables)
 	//s.e.GET("/cat", s.getCategory)
 	//s.e.GET("/kw", s.getKeyword)
