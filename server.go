@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -58,7 +59,7 @@ func (s *server) getKeyword(c echo.Context) error{
 func creds(fn string) string {
 	f, err := os.Open(fn)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	defer f.Close()
 
@@ -73,7 +74,7 @@ func creds(fn string) string {
 func readEntriesJSON(fn string) []entry {
 	f, err := os.Open(fn)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	defer f.Close()
 
@@ -83,7 +84,7 @@ func readEntriesJSON(fn string) []entry {
 
 	err = json.Unmarshal(bytes, &allEntries)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	//TODO: Erase test
@@ -98,7 +99,7 @@ func (c *category) UnmarshalJSON(data []byte) error {
 	var v string
 	err := json.Unmarshal(data, &v)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	c.Name = v
 	return err
@@ -108,7 +109,7 @@ func (kw *keyword) UnmarshalJSON(data []byte) error {
 	var v string
 	err := json.Unmarshal(data, &v)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	kw.Name = v
 	return err
@@ -121,18 +122,18 @@ func (s *server) createTables() error {
 		q := fmt.Sprintf("DROP TABLE IF EXISTS %v ;", tableNames[i])
 		_, err := s.db.Exec(q)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 	}
 
 	q1 := `
 	CREATE TABLE entries(
-		idEntry INT NOT NULL AUTO_INCREMENT, 
+		entryID INT NOT NULL AUTO_INCREMENT, 
 		question VARCHAR(600), 
 		answer VARCHAR(4000),
 		submission_date DATE,
 		last_update DATE,
-		PRIMARY KEY ( idEntry )
+		PRIMARY KEY ( entryID )
 	);`
 
 	q2 := `
@@ -153,7 +154,7 @@ func (s *server) createTables() error {
 		entryID INT NOT NULL,
 		category VARCHAR(50) NOT NULL,
 		PRIMARY KEY ( idEC ),
-		FOREIGN KEY ( entryID ) REFERENCES entries( idEntry ),
+		FOREIGN KEY ( entryID ) REFERENCES entries( entryID ),
 		FOREIGN KEY ( category ) REFERENCES categories( category )
 	);`
 
@@ -163,29 +164,29 @@ func (s *server) createTables() error {
 		entryID INT NOT NULL,
 		keyword VARCHAR(50) NOT NULL,
 		PRIMARY KEY ( idEKW ),
-		FOREIGN KEY ( entryID ) REFERENCES entries( idEntry ),
+		FOREIGN KEY ( entryID ) REFERENCES entries( entryID ),
 		FOREIGN KEY ( keyword ) REFERENCES keywords( keyword )
 	);`
 
 	_, err := s.db.Exec(q1)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	_, err = s.db.Exec(q2)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	_, err = s.db.Exec(q3)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	_, err = s.db.Exec(q4)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	_, err = s.db.Exec(q5)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	return err
@@ -203,7 +204,7 @@ func (s *server) getCategoryNames(c echo.Context) error {
 	for rows.Next() {
 		err := rows.Scan(&categoryName)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 		cats = append(cats, category{Name: categoryName})
 	}
@@ -220,7 +221,7 @@ func (s *server) getKeywordList(c echo.Context) error {
 	for rows.Next() {
 		err := rows.Scan(&kw)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 		kws = append(kws, keyword{Name: kw})
 	}
@@ -235,82 +236,82 @@ func (s *server) newEntryDB(e entry) error {
 		?, ?, ?, ?
 	);`, e.Question, e.Answer, e.SubmissionDate, e.LastUpdate)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	var entryID string
 
 	err = s.db.QueryRow(`
-		SELECT LAST_INSERT_ID
+		SELECT LAST_INSERT_ID()
 		FROM entries;
-	`).Scan(entryID)
+	`).Scan(&entryID)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	for i := range e.Categories {
 		b, err := s.checkCategory(e.Categories[i])
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 		if !b {
 			_, err := s.db.Exec(`
 			INSERT INTO categories
 			VALUES (
 				?
-			);`, e.Categories[i])
+			);`, e.Categories[i].Name)
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			}
 		}
 
 		_, err = s.db.Exec(`
-			INSERT INTO entriesCategories (entryID, category)
-			SET entryId = (
-					SELECT entryId
+			INSERT INTO entriesCategories
+			SET entryID = (
+					SELECT entryID
 					FROM entries
-					WHERE entryId = ?
+					WHERE entryID = ?
 			),
 				category = (
 					SELECT category
 					FROM categories
 					WHERE category = ?
-				);`, entryID, e.Categories[i])
+				);`, entryID, e.Categories[i].Name)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 	}
 
 	for i := range e.KeyWords {
 		b, err := s.checkKeyword(e.KeyWords[i])
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 		if !b {
 			_, err := s.db.Exec(`
 			INSERT INTO keywords
 			VALUES (
 				?
-			);`, e.KeyWords[i])
+			);`, e.KeyWords[i].Name)
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			}
 		}
 
 		_, err = s.db.Exec(`
-			INSERT INTO entriesKeywords (entryID, keyword)
-			SET entryId = (
-					SELECT entryId
+			INSERT INTO entriesKeywords
+			SET entryID = (
+					SELECT entryID
 					FROM entries
-					WHERE entryId = ?
+					WHERE entryID = ?
 			),
-				category = (
-					SELECT category
-					FROM categories
-					WHERE category = ?
-				);`, entryID, e.KeyWords[i])
+				keyword = (
+					SELECT keyword
+					FROM keywords
+					WHERE keyword = ?
+				);`, entryID, e.KeyWords[i].Name)
 		if err != nil {
-			fmt.Println(err)
+			log.Println(err)
 		}
 	}
 	return err
@@ -322,7 +323,7 @@ func (s *server) checkCategory(c category) (bool, error) {
 		SELECT COUNT(category) FROM categories WHERE category=? ;
 	`, c.Name).Scan(&cat)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	catNr, err := strconv.ParseInt(cat, 6, 12)
@@ -343,7 +344,7 @@ func (s *server) checkKeyword(kw keyword) (bool, error) {
 		SELECT COUNT(keyword) FROM keywords WHERE keyword=? ;
 	`, kw.Name).Scan(&k)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	kNr, err := strconv.ParseInt(k, 6, 12)
@@ -383,19 +384,22 @@ func (s *server) checkKeyword(kw keyword) (bool, error) {
 } */
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	db, err := sql.Open("mysql", creds("credentials.json"))
 	s := &server{
 		e:  echo.New(),
 		db: db,
 	}
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 	s.createTables()
 	entries := readEntriesJSON("dummy.json")
 	for i := range entries {
 		s.newEntryDB(entries[i])
 	}
+
 	//s.e.POST("/tables", s.createTables)
 	//s.e.GET("/cat", s.getCategory)
 	//s.e.GET("/kw", s.getKeyword)
