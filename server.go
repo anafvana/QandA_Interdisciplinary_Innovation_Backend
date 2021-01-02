@@ -28,33 +28,28 @@ type cred struct {
 
 //type categories []category
 
-type category struct {
+//Category is a type made of only a name. It is made to fit under an Entry
+type Category struct {
 	Name string `json:"cat"`
 }
 
 //type keywords []keyword
 
-type keyword struct {
+//Keyword is a type made of only a name. It is made to fit under an Entry
+type Keyword struct {
 	Name string `json:"kw"`
 }
 
-type entry struct {
-	ID             string     `json:"_id"`
+//Entry contains the information corresponding to a question/answer entry
+type Entry struct {
+	ID             string     `json:"id"`
 	Question       string     `json:"question"`
 	Answer         string     `json:"answer"`
 	SubmissionDate time.Time  `json:"submissionDate"`
 	LastUpdate     time.Time  `json:"lastUpdate"`
-	Categories     []category `json:"categories"`
-	KeyWords       []keyword  `json:"keywords"`
+	Categories     []Category `json:"categories"`
+	KeyWords       []Keyword  `json:"keywords"`
 }
-
-/*func (s *server) getCategory(c echo.Context) error {
-	return c.JSON(http.StatusOK, ???)
-}
-
-func (s *server) getKeyword(c echo.Context) error{
-	return c.JSON(http.StatusOK, ???)
-}*/
 
 /*-----------------------	DATABASE	-----------------------*/
 //Fetches credentials to log into database
@@ -152,7 +147,7 @@ func (s *server) createTables() error {
 }
 
 //Inserting entry in Database
-func (s *server) newEntryDB(e entry) error {
+func (s *server) newEntryDB(e Entry) error {
 	_, err := s.db.Exec(`
 	INSERT INTO entries (question, answer, submission_date, last_update)
 	VALUES (
@@ -240,7 +235,7 @@ func (s *server) newEntryDB(e entry) error {
 	return err
 }
 
-func (s *server) checkCategory(c category) (bool, error) {
+func (s *server) checkCategory(c Category) (bool, error) {
 	var cat string
 	err := s.db.QueryRow(`
 		SELECT COUNT(category) FROM categories WHERE category=? ;
@@ -261,7 +256,7 @@ func (s *server) checkCategory(c category) (bool, error) {
 	return b, err
 }
 
-func (s *server) checkKeyword(kw keyword) (bool, error) {
+func (s *server) checkKeyword(kw Keyword) (bool, error) {
 	var k string
 	err := s.db.QueryRow(`
 		SELECT COUNT(keyword) FROM keywords WHERE keyword=? ;
@@ -284,8 +279,8 @@ func (s *server) checkKeyword(kw keyword) (bool, error) {
 
 //Fetching entry from Database
 //Read as a struct
-func (s *server) fetchEntry(id string) entry {
-	var e entry
+func (s *server) fetchEntry(id string) Entry {
+	var e Entry
 
 	//Fetches data from entries
 	var sdSTR string
@@ -313,12 +308,11 @@ func (s *server) fetchEntry(id string) entry {
 	//Fetches keywords
 	e.KeyWords = s.fetchEntryKeywords(e.ID)
 
-	fmt.Println(e)
 	return e
 }
 
-func (s *server) fetchEntryCategory(id string) []category {
-	var cats []category
+func (s *server) fetchEntryCategory(id string) []Category {
+	var cats []Category
 
 	//Fetches categories
 	rows, err := s.db.Query(`
@@ -334,14 +328,14 @@ func (s *server) fetchEntryCategory(id string) []category {
 		if err != nil {
 			log.Println(err)
 		}
-		cats = append(cats, category{Name: cat})
+		cats = append(cats, Category{Name: cat})
 	}
 
 	return cats
 }
 
-func (s *server) fetchEntryKeywords(id string) []keyword {
-	var kws []keyword
+func (s *server) fetchEntryKeywords(id string) []Keyword {
+	var kws []Keyword
 
 	//Fetches categories
 	rows, err := s.db.Query(`
@@ -357,7 +351,7 @@ func (s *server) fetchEntryKeywords(id string) []keyword {
 		if err != nil {
 			log.Println(err)
 		}
-		kws = append(kws, keyword{Name: kw})
+		kws = append(kws, Keyword{Name: kw})
 	}
 
 	return kws
@@ -372,14 +366,14 @@ func (s *server) getCategoryNames(c echo.Context) error {
 	rows, _ := s.db.Query("SELECT * FROM categories;")
 
 	var categoryName string
-	var cats []category
+	var cats []Category
 
 	for rows.Next() {
 		err := rows.Scan(&categoryName)
 		if err != nil {
 			log.Println(err)
 		}
-		cats = append(cats, category{Name: categoryName})
+		cats = append(cats, Category{Name: categoryName})
 	}
 
 	return c.JSON(http.StatusOK, cats)
@@ -389,14 +383,14 @@ func (s *server) getKeywordList(c echo.Context) error {
 	rows, _ := s.db.Query("SELECT * FROM keywords;")
 
 	var kw string
-	var kws []keyword
+	var kws []Keyword
 
 	for rows.Next() {
 		err := rows.Scan(&kw)
 		if err != nil {
 			log.Println(err)
 		}
-		kws = append(kws, keyword{Name: kw})
+		kws = append(kws, Keyword{Name: kw})
 	}
 
 	return c.JSON(http.StatusOK, kws)
@@ -404,7 +398,7 @@ func (s *server) getKeywordList(c echo.Context) error {
 
 /*-----------------------	JSON	-----------------------*/
 //Reads all entries from a JSON file
-func readEntriesJSON(fn string) []entry {
+func readEntriesJSON(fn string) []Entry {
 	f, err := os.Open(fn)
 	if err != nil {
 		log.Println(err)
@@ -413,7 +407,7 @@ func readEntriesJSON(fn string) []entry {
 
 	bytes, _ := ioutil.ReadAll(f)
 
-	var allEntries []entry
+	var allEntries []Entry
 
 	err = json.Unmarshal(bytes, &allEntries)
 	if err != nil {
@@ -428,8 +422,8 @@ func readEntriesJSON(fn string) []entry {
 	return allEntries
 }
 
-//Handles unmarshalling of categories
-func (c *category) UnmarshalJSON(data []byte) error {
+//UnmarshalJSON handles unmarshalling of categories
+func (c *Category) UnmarshalJSON(data []byte) error {
 	var v string
 	err := json.Unmarshal(data, &v)
 	if err != nil {
@@ -439,8 +433,8 @@ func (c *category) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-//Handles unmarshalling of keywords
-func (kw *keyword) UnmarshalJSON(data []byte) error {
+//UnmarshalJSON handles unmarshalling of keywords
+func (kw *Keyword) UnmarshalJSON(data []byte) error {
 	var v string
 	err := json.Unmarshal(data, &v)
 	if err != nil {
@@ -450,6 +444,25 @@ func (kw *keyword) UnmarshalJSON(data []byte) error {
 	return err
 }
 
+//Converts struct to JSON
+func (s *server) convertToJSON(e Entry) (string, error) {
+	b, err := json.Marshal(e)
+	if err != nil {
+		log.Println(err)
+	}
+	println(string(b))
+	return string(b), err
+}
+
+/*func (s *server) getCategory(c echo.Context) error {
+	return c.JSON(http.StatusOK, ???)
+}
+
+func (s *server) getKeyword(c echo.Context) error{
+	return c.JSON(http.StatusOK, ???)
+}*/
+
+/*-----------------------	MAIN	-----------------------*/
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
@@ -458,7 +471,7 @@ func main() {
 		e:  echo.New(),
 		db: db,
 	}
-	if err != nil {
+	if err != nil {	
 		log.Println(err)
 	}
 	s.createTables()
@@ -466,7 +479,7 @@ func main() {
 	for i := range entries {
 		s.newEntryDB(entries[i])
 	}
-	s.fetchEntry("2")
+	s.convertToJSON(s.fetchEntry("2"))
 	//s.e.POST("/tables", s.createTables)
 	//s.e.GET("/cat", s.getCategory)
 	//s.e.GET("/kw", s.getKeyword)
