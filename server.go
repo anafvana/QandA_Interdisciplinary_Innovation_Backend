@@ -56,6 +56,8 @@ func (s *server) getKeyword(c echo.Context) error{
 	return c.JSON(http.StatusOK, ???)
 }*/
 
+/*-----------------------	DATABASE	-----------------------*/
+//Fetches credentials to log into database
 func creds(fn string) string {
 	f, err := os.Open(fn)
 	if err != nil {
@@ -71,50 +73,7 @@ func creds(fn string) string {
 	return fmt.Sprintf("%v:%v@/%v", c.Username, c.Password, c.Database)
 }
 
-func readEntriesJSON(fn string) []entry {
-	f, err := os.Open(fn)
-	if err != nil {
-		log.Println(err)
-	}
-	defer f.Close()
-
-	bytes, _ := ioutil.ReadAll(f)
-
-	var allEntries []entry
-
-	err = json.Unmarshal(bytes, &allEntries)
-	if err != nil {
-		log.Println(err)
-	}
-
-	//TODO: Erase test
-	/* for i := range allEntries {
-		fmt.Println(allEntries[i])
-	} */
-
-	return allEntries
-}
-
-func (c *category) UnmarshalJSON(data []byte) error {
-	var v string
-	err := json.Unmarshal(data, &v)
-	if err != nil {
-		log.Println(err)
-	}
-	c.Name = v
-	return err
-}
-
-func (kw *keyword) UnmarshalJSON(data []byte) error {
-	var v string
-	err := json.Unmarshal(data, &v)
-	if err != nil {
-		log.Println(err)
-	}
-	kw.Name = v
-	return err
-}
-
+//Database set-up
 func (s *server) createTables() error {
 	//TODO delete this before official deployment
 	tableNames := []string{"entriesKeywords", "entriesCategories", "categories", "keywords", "entries"}
@@ -192,43 +151,7 @@ func (s *server) createTables() error {
 	return err
 }
 
-/* func (s *server) getEntries() error{
-} */
-
-func (s *server) getCategoryNames(c echo.Context) error {
-	rows, _ := s.db.Query("SELECT * FROM categories;")
-
-	var categoryName string
-	var cats []category
-
-	for rows.Next() {
-		err := rows.Scan(&categoryName)
-		if err != nil {
-			log.Println(err)
-		}
-		cats = append(cats, category{Name: categoryName})
-	}
-
-	return c.JSON(http.StatusOK, cats)
-}
-
-func (s *server) getKeywordList(c echo.Context) error {
-	rows, _ := s.db.Query("SELECT * FROM keywords;")
-
-	var kw string
-	var kws []keyword
-
-	for rows.Next() {
-		err := rows.Scan(&kw)
-		if err != nil {
-			log.Println(err)
-		}
-		kws = append(kws, keyword{Name: kw})
-	}
-
-	return c.JSON(http.StatusOK, kws)
-}
-
+//Inserting entry in Database
 func (s *server) newEntryDB(e entry) error {
 	_, err := s.db.Exec(`
 	INSERT INTO entries (question, answer, submission_date, last_update)
@@ -359,6 +282,8 @@ func (s *server) checkKeyword(kw keyword) (bool, error) {
 	return b, err
 }
 
+//Fetching entry from Database
+//Read as a struct
 func (s *server) fetchEntry(id string) entry {
 	var e entry
 
@@ -394,7 +319,7 @@ func (s *server) fetchEntry(id string) entry {
 
 func (s *server) fetchEntryCategory(id string) []category {
 	var cats []category
-	
+
 	//Fetches categories
 	rows, err := s.db.Query(`
 		SELECT category FROM entriesCategories WHERE entryID=? ;
@@ -417,7 +342,7 @@ func (s *server) fetchEntryCategory(id string) []category {
 
 func (s *server) fetchEntryKeywords(id string) []keyword {
 	var kws []keyword
-	
+
 	//Fetches categories
 	rows, err := s.db.Query(`
 		SELECT keyword FROM entriesKeywords WHERE entryID=? ;
@@ -438,30 +363,92 @@ func (s *server) fetchEntryKeywords(id string) []keyword {
 	return kws
 }
 
-
-/* func createEntryJSON() {
-	var cc []category
-	var kkww []keyword
-
-	var e entry
-	e = entry {
-		Question: ,
-		Answer: ,
-		SubmissionDate: ,
-		LastUpdate: ,
-	}
-
-	for i := 0; i < len(ARRAY); i++ {
-		cc = append(cc, ARRAY[i]])
-	}
-
-	for i := 0; i < len(ARRAY); i++{
-		kkww = append(kkww, ARRAY[i])
-	}
-
-	e.Categories = cc
-	e.KeyWords = kkww
+//Fetching data from Database
+//Read into JSON
+/* func (s *server) getEntries() error{
 } */
+
+func (s *server) getCategoryNames(c echo.Context) error {
+	rows, _ := s.db.Query("SELECT * FROM categories;")
+
+	var categoryName string
+	var cats []category
+
+	for rows.Next() {
+		err := rows.Scan(&categoryName)
+		if err != nil {
+			log.Println(err)
+		}
+		cats = append(cats, category{Name: categoryName})
+	}
+
+	return c.JSON(http.StatusOK, cats)
+}
+
+func (s *server) getKeywordList(c echo.Context) error {
+	rows, _ := s.db.Query("SELECT * FROM keywords;")
+
+	var kw string
+	var kws []keyword
+
+	for rows.Next() {
+		err := rows.Scan(&kw)
+		if err != nil {
+			log.Println(err)
+		}
+		kws = append(kws, keyword{Name: kw})
+	}
+
+	return c.JSON(http.StatusOK, kws)
+}
+
+/*-----------------------	JSON	-----------------------*/
+//Reads all entries from a JSON file
+func readEntriesJSON(fn string) []entry {
+	f, err := os.Open(fn)
+	if err != nil {
+		log.Println(err)
+	}
+	defer f.Close()
+
+	bytes, _ := ioutil.ReadAll(f)
+
+	var allEntries []entry
+
+	err = json.Unmarshal(bytes, &allEntries)
+	if err != nil {
+		log.Println(err)
+	}
+
+	//TODO: Erase test
+	/* for i := range allEntries {
+		fmt.Println(allEntries[i])
+	} */
+
+	return allEntries
+}
+
+//Handles unmarshalling of categories
+func (c *category) UnmarshalJSON(data []byte) error {
+	var v string
+	err := json.Unmarshal(data, &v)
+	if err != nil {
+		log.Println(err)
+	}
+	c.Name = v
+	return err
+}
+
+//Handles unmarshalling of keywords
+func (kw *keyword) UnmarshalJSON(data []byte) error {
+	var v string
+	err := json.Unmarshal(data, &v)
+	if err != nil {
+		log.Println(err)
+	}
+	kw.Name = v
+	return err
+}
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -479,7 +466,7 @@ func main() {
 	for i := range entries {
 		s.newEntryDB(entries[i])
 	}
-	s.fetchEntry("1")
+	s.fetchEntry("2")
 	//s.e.POST("/tables", s.createTables)
 	//s.e.GET("/cat", s.getCategory)
 	//s.e.GET("/kw", s.getKeyword)
