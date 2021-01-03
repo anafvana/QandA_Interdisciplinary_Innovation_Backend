@@ -13,7 +13,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
-	//"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type server struct {
@@ -29,12 +29,12 @@ type cred struct {
 
 //Category is a type made of only a name. It is made to fit under an Entry
 type Category struct {
-	Name string `json:"cat"`
+	Name string `json:"str"`
 }
 
 //Keyword is a type made of only a name. It is made to fit under an Entry
 type Keyword struct {
-	Name string `json:"kw"`
+	Name string `json:"str"`
 }
 
 //Entry contains the information corresponding to a question/answer entry
@@ -508,19 +508,18 @@ func main() {
 	}
 
 	//Allow CORS
-/* 	s.e.Use(middleware.Logger())
+	s.e.Use(middleware.Logger())
 	s.e.Use(middleware.Recover())
 	s.e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{":3000"},
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodPut},
 	}))
- */
+
 	/*-------TESTING AREA-------*/
 	//s.convertToJSON(s.fetchEntry("2"))
 	//s.e.POST("/tables", s.createTables)
 	//s.e.GET("/cat", s.getCategory)
 	//s.e.GET("/kw", s.getKeyword)
 	s.e.GET("/entries", s.getAllEntries)
-	s.e.Static("/", "../interdisciplinary-innovation-qna")
 	s.e.Logger.Fatal(s.e.Start(":1323"))
 }
