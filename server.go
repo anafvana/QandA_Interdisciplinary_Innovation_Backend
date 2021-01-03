@@ -13,6 +13,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
+	//"github.com/labstack/echo/v4/middleware"
 )
 
 type server struct {
@@ -26,14 +27,10 @@ type cred struct {
 	Database string `json:"database"`
 }
 
-//type categories []category
-
 //Category is a type made of only a name. It is made to fit under an Entry
 type Category struct {
 	Name string `json:"cat"`
 }
-
-//type keywords []keyword
 
 //Keyword is a type made of only a name. It is made to fit under an Entry
 type Keyword struct {
@@ -235,6 +232,7 @@ func (s *server) newEntryDB(e Entry) error {
 	return err
 }
 
+//Checks if category already exists
 func (s *server) checkCategory(c Category) (bool, error) {
 	var cat string
 	err := s.db.QueryRow(`
@@ -256,6 +254,7 @@ func (s *server) checkCategory(c Category) (bool, error) {
 	return b, err
 }
 
+//Checks if keyword already exists
 func (s *server) checkKeyword(kw Keyword) (bool, error) {
 	var k string
 	err := s.db.QueryRow(`
@@ -303,7 +302,7 @@ func (s *server) fetchEntry(id string) Entry {
 	}
 
 	//Fetches categories
-	e.Categories = s.fetchEntryCategory(e.ID)
+	e.Categories = s.fetchEntryCategories(e.ID)
 
 	//Fetches keywords
 	e.KeyWords = s.fetchEntryKeywords(e.ID)
@@ -311,7 +310,7 @@ func (s *server) fetchEntry(id string) Entry {
 	return e
 }
 
-func (s *server) fetchEntryCategory(id string) []Category {
+func (s *server) fetchEntryCategories(id string) []Category {
 	var cats []Category
 
 	//Fetches categories
@@ -359,8 +358,32 @@ func (s *server) fetchEntryKeywords(id string) []Keyword {
 
 //Fetching data from Database
 //Read into JSON
-/* func (s *server) getEntries() error{
-} */
+func (s *server) getAllEntries(c echo.Context) error{
+	rows, err := s.db.Query(`
+		SELECT entryID FROM entries; 
+	`)
+	if err != nil {
+		log.Println(err)
+	}
+
+	var ids []string
+	var id string
+	var entries []Entry
+
+	for rows.Next() {
+		err = rows.Scan(&id)
+		if err != nil {
+			log.Println(err)
+		}
+		ids = append(ids, id)
+	}
+
+	for i := range ids {
+		entries = append(entries, s.fetchEntry(ids[i]))
+	}
+
+	return c.JSON(http.StatusOK, entries)
+} 
 
 func (s *server) getCategoryNames(c echo.Context) error {
 	rows, _ := s.db.Query("SELECT * FROM categories;")
@@ -464,8 +487,10 @@ func (s *server) getKeyword(c echo.Context) error{
 
 /*-----------------------	MAIN	-----------------------*/
 func main() {
+	//Richer logging
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	//Establish connection with Database
 	db, err := sql.Open("mysql", creds("credentials.json"))
 	s := &server{
 		e:  echo.New(),
@@ -474,14 +499,28 @@ func main() {
 	if err != nil {	
 		log.Println(err)
 	}
+
+	//Create and populate tables
 	s.createTables()
 	entries := readEntriesJSON("dummy.json")
 	for i := range entries {
 		s.newEntryDB(entries[i])
 	}
-	s.convertToJSON(s.fetchEntry("2"))
+
+	//Allow CORS
+/* 	s.e.Use(middleware.Logger())
+	s.e.Use(middleware.Recover())
+	s.e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{":3000"},
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodPut},
+	}))
+ */
+	/*-------TESTING AREA-------*/
+	//s.convertToJSON(s.fetchEntry("2"))
 	//s.e.POST("/tables", s.createTables)
 	//s.e.GET("/cat", s.getCategory)
 	//s.e.GET("/kw", s.getKeyword)
-	//s.e.Logger.Fatal(s.e.Start(":1323"))
+	s.e.GET("/entries", s.getAllEntries)
+	s.e.Static("/", "../interdisciplinary-innovation-qna")
+	s.e.Logger.Fatal(s.e.Start(":1323"))
 }
