@@ -356,8 +356,7 @@ func (s *server) fetchEntryKeywords(id string) []Keyword {
 	return kws
 }
 
-//Fetching data from Database
-//Read into JSON
+/*--------------------	DATABASE to JSON	--------------------*/
 func (s *server) getAllEntries(c echo.Context) error{
 	rows, err := s.db.Query(`
 		SELECT entryID FROM entries; 
@@ -477,11 +476,11 @@ func (s *server) convertToJSON(e Entry) (string, error) {
 	return string(b), err
 }
 
-/*func (s *server) getCategory(c echo.Context) error {
+/* func (s *server) getCategory(c echo.Context) error {
 	return c.JSON(http.StatusOK, ???)
-}
+} */
 
-func (s *server) getKeyword(c echo.Context) error{
+/*func (s *server) getKeyword(c echo.Context) error{
 	return c.JSON(http.StatusOK, ???)
 }*/
 
@@ -518,8 +517,8 @@ func main() {
 	/*-------TESTING AREA-------*/
 	//s.convertToJSON(s.fetchEntry("2"))
 	//s.e.POST("/tables", s.createTables)
-	//s.e.GET("/cat", s.getCategory)
-	//s.e.GET("/kw", s.getKeyword)
+	s.e.GET("/cats", s.getCategoryNames)
+	s.e.GET("/kws", s.getKeywordList)
 	s.e.GET("/entries", s.getAllEntries)
 	s.e.Logger.Fatal(s.e.Start(":1323"))
 }
